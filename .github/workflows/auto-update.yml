@@ -1,0 +1,44 @@
+name: Updating the resources
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+      - name: Get the system requirements.
+        run: sudo apt-get install coreutils -y
+      - name: Get the current version of Go from project.
+        run: cat go.mod | head -3 | tail -1 | echo "GO_VERSION_FROM_PROJECT=$(cut -d' ' -f2)" >>${GITHUB_ENV}
+      - name: Set up Go version "${{ env.GO_VERSION_FROM_PROJECT }}"
+        uses: actions/setup-go@v2
+        with:
+          go-version: "${{ env.GO_VERSION_FROM_PROJECT }}"
+        id: go
+      - name: Get dependencies
+        run: go get .
+      - name: Build Test
+        run: go build .
+      - name: Generating new resources.
+        run: ./random-data -update
+      - name: View bool
+        run: cat assets/bool
+      - name: View byte
+        run: cat assets/byte
+      - name: View int
+        run: cat assets/int
+      - name: View string
+        run: cat assets/string
+      - name: Update resources
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git checkout --orphan tmp-main
+          git add -A
+          git commit -m "Updates are performed automatically. $(date)"
+          git branch -D main
+          git branch -m main
+          git push -f origin main
